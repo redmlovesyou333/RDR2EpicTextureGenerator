@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RDR2 Texture Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/RGBELoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fflate@0.8.2/umd/index.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/FBXLoader.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-gray-900 text-gray-200 antialiased">
+
+    <div class="flex flex-col md:flex-row h-screen">
+        <div class="w-full md:w-[450px] bg-gray-800 p-6 overflow-y-auto shadow-lg">
+            <h1 class="text-2xl font-bold text-white mb-2">RDR2 Texture Generator</h1>
+            <p class="text-sm text-gray-400 mb-8">A tool for creating normal and material maps for the RAGE engine.</p>
+
+            <div class="bg-gray-700 rounded-lg p-4 mb-6">
+                <h2 class="text-lg font-semibold text-white mb-3">Source Texture (Diffuse)</h2>
+                <label id="file-label" for="file-input" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg cursor-pointer text-center block transition-colors">
+                    Load Image
+                </label>
+                <input type="file" id="file-input" class="hidden" accept="image/*">
+                <p id="file-name" class="text-xs text-gray-400 mt-2 truncate">No file selected.</p>
+            </div>
+
+            <div id="normal-map-controls" class="bg-gray-700 rounded-lg p-4 mb-6 hidden">
+                <h2 class="text-lg font-semibold text-white mb-3">Normal Map</h2>
+                <div class="space-y-4">
+                    <div>
+                        <label for="strength" class="block text-sm font-medium text-gray-300">Strength</label>
+                        <div class="flex items-center space-x-3">
+                            <input type="range" id="strength" min="0.1" max="20" value="3" step="0.1" class="w-full">
+                            <span id="strength-value" class="text-sm font-mono bg-gray-800 px-2 py-1 rounded w-16 text-center">3.0</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-around pt-2">
+                        <label for="invert-r" class="flex items-center space-x-2 cursor-pointer">
+                            <input type="checkbox" id="invert-r" class="form-checkbox h-5 w-5 bg-gray-600 border-gray-500 rounded text-blue-500 focus:ring-blue-500">
+                            <span class="text-sm">Invert Red (X)</span>
+                        </label>
+                         <label for="invert-g" class="flex items-center space-x-2 cursor-pointer">
+                            <input type="checkbox" id="invert-g" class="form-checkbox h-5 w-5 bg-gray-600 border-gray-500 rounded text-blue-500 focus:ring-blue-500">
+                            <span class="text-sm">Invert Green (Y)</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="material-map-module" class="bg-gray-700 rounded-lg p-4 mb-6 hidden">
+                <h2 class="text-lg font-semibold text-white mb-3">Material Map (MRA)</h2>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300">Metallic (Red Channel)</label>
+                        <div class="flex items-center space-x-3 mt-1">
+                            <label for="metallic-file" class="flex-shrink-0 bg-gray-600 hover:bg-gray-500 text-white text-xs font-bold py-2 px-3 rounded-lg cursor-pointer transition-colors">Load Map</label>
+                            <input type="file" id="metallic-file" class="hidden" accept="image/*">
+                            <input type="range" id="metallic-slider" min="0" max="1" value="0.1" step="0.01" class="w-full">
+                            <span id="metallic-value" class="text-sm font-mono bg-gray-800 px-2 py-1 rounded w-16 text-center">0.10</span>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300">Roughness (Green Channel)</label>
+                        <div class="flex items-center space-x-3 mt-1">
+                            <label for="roughness-file" class="flex-shrink-0 bg-gray-600 hover:bg-gray-500 text-white text-xs font-bold py-2 px-3 rounded-lg cursor-pointer transition-colors">Load Map</label>
+                            <input type="file" id="roughness-file" class="hidden" accept="image/*">
+                            <input type="range" id="roughness-slider" min="0" max="1" value="0.5" step="0.01" class="w-full">
+                            <span id="roughness-value" class="text-sm font-mono bg-gray-800 px-2 py-1 rounded w-16 text-center">0.50</span>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300">Ambient Occlusion (Blue Channel)</label>
+                        <div class="flex items-center space-x-3 mt-1">
+                            <label for="ao-file" class="flex-shrink-0 bg-gray-600 hover:bg-gray-500 text-white text-xs font-bold py-2 px-3 rounded-lg cursor-pointer transition-colors">Load Map</label>
+                            <input type="file" id="ao-file" class="hidden" accept="image/*">
+                            <input type="range" id="ao-slider" min="0" max="1" value="1.0" step="0.01" class="w-full">
+                            <span id="ao-value" class="text-sm font-mono bg-gray-800 px-2 py-1 rounded w-16 text-center">1.00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+             <div id="preview-export-controls" class="bg-gray-700 rounded-lg p-4 mb-6 hidden">
+                <h2 class="text-lg font-semibold text-white mb-3">Preview & Export</h2>
+                <div id="preview-grid" class="grid grid-cols-2 gap-4 mb-4">
+                    <div id="source-preview-container" class="canvas-container">
+                        <p class="text-center text-xs py-1 bg-gray-800">Source</p>
+                        <canvas id="source-preview" class="w-full h-auto"></canvas>
+                    </div>
+                    <div id="normal-preview-container" class="canvas-container">
+                        <p class="text-center text-xs py-1 bg-gray-800">Normal Map</p>
+                        <canvas id="normal-preview" class="w-full h-auto"></canvas>
+                    </div>
+                    <div id="material-preview-container" class="canvas-container hidden-strict">
+                        <p class="text-center text-xs py-1 bg-gray-800">Material Map</p>
+                        <canvas id="material-preview" class="w-full h-auto"></canvas>
+                    </div>
+                </div>
+                <div class="flex flex-col space-y-3">
+                    <button id="export-normal-btn" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">
+                        Export Normal Map
+                    </button>
+                    <button id="export-material-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors hidden-strict">
+                        Export Material Map
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex-1 flex flex-col bg-gray-900 relative">
+            <div class="p-2 bg-gray-800 border-b border-gray-700 flex items-center justify-center space-x-4">
+                 <span class="text-sm font-medium">Preview Model:</span>
+                 <button id="cowboy-btn" class="px-3 py-1 bg-blue-600 rounded-md text-sm font-semibold">Cowboy</button>
+                 <button id="sphere-btn" class="px-3 py-1 bg-gray-600 hover:bg-gray-500 rounded-md text-sm font-semibold">Sphere</button>
+                 <button id="cube-btn" class="px-3 py-1 bg-gray-600 hover:bg-gray-500 rounded-md text-sm font-semibold">Cube</button>
+                 <button id="plane-btn" class="px-3 py-1 bg-gray-600 hover:bg-gray-500 rounded-md text-sm font-semibold">Plane</button>
+            </div>
+            <div id="viewer" class="flex-1 w-full h-full"></div>
+            
+            <div id="utility-menu-container" class="absolute top-16 right-4 text-white">
+                <button id="utility-toggle-btn" class="w-10 h-10 bg-gray-700 bg-opacity-80 rounded-full flex items-center justify-center hover:bg-gray-600 transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                </button>
+                <div id="utility-panel" class="hidden absolute top-0 right-12 bg-gray-700 bg-opacity-90 rounded-lg p-4 w-56 space-y-4">
+                    <h4 class="font-bold text-center border-b border-gray-600 pb-2">Light Controls</h4>
+                    <div>
+                        <label for="light-color" class="block text-sm font-medium text-gray-300">Color</label>
+                        <input type="color" id="light-color" value="#FFFFFF" class="w-full h-8 p-0 mt-1 border-none cursor-pointer">
+                    </div>
+                    <div>
+                        <label for="light-intensity" class="block text-sm font-medium text-gray-300">Intensity</label>
+                        <div class="flex items-center space-x-2">
+                             <input type="range" id="light-intensity" min="0" max="5" value="1.5" step="0.1" class="w-full">
+                             <span id="light-intensity-value" class="text-sm font-mono w-10 text-center">1.5</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="message-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-gray-700 rounded-lg shadow-xl p-6 w-11/12 md:w-1/3">
+            <h3 id="message-title" class="text-xl font-bold text-white mb-4">Notification</h3>
+            <p id="message-text" class="text-gray-300 mb-6">Please load an image first.</p>
+            <button id="message-close-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">OK</button>
+        </div>
+    </div>
+
+    <div id="loading-overlay" class="hidden fixed inset-0 bg-black bg-opacity-60 flex flex-col items-center justify-center z-50">
+        <div class="loader"></div>
+        <p class="text-white text-lg mt-4">Loading...</p>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
